@@ -19,6 +19,7 @@
 Unit tests for update_chart_preview MCP tool
 """
 
+import importlib
 from unittest.mock import Mock, patch
 
 import pytest
@@ -33,6 +34,14 @@ from superset.mcp_service.chart.schemas import (
     TableChartConfig,
     UpdateChartPreviewRequest,
     XYChartConfig,
+)
+
+# The package ``__init__.py`` re-exports the ``update_chart_preview`` tool
+# function under the same dotted path as the module, so mock.patch's string
+# lookup of ``...update_chart_preview.<attr>`` can resolve to the function on
+# some Python versions. Hold a direct module reference for ``patch.object``.
+update_chart_preview_module = importlib.import_module(
+    "superset.mcp_service.chart.tool.update_chart_preview"
 )
 
 
@@ -514,12 +523,9 @@ class TestUpdateChartPreview:
 class TestUpdateChartPreviewValidation:
     """Tier-1 validation gate and dataset access checks."""
 
-    @patch(
-        "superset.mcp_service.chart.tool.update_chart_preview.has_dataset_access",
-        return_value=True,
-    )
+    @patch.object(update_chart_preview_module, "has_dataset_access", return_value=True)
     @patch("superset.daos.dataset.DatasetDAO.find_by_id")
-    @patch("superset.mcp_service.chart.tool.update_chart_preview.validate_and_compile")
+    @patch.object(update_chart_preview_module, "validate_and_compile")
     @patch(
         "superset.mcp_service.commands.create_form_data.MCPCreateFormDataCommand.run"
     )
@@ -575,10 +581,7 @@ class TestUpdateChartPreviewValidation:
             assert "sum_boys" in error["suggestions"]
             mock_create_form_data.assert_not_called()
 
-    @patch(
-        "superset.mcp_service.chart.tool.update_chart_preview.has_dataset_access",
-        return_value=False,
-    )
+    @patch.object(update_chart_preview_module, "has_dataset_access", return_value=False)
     @patch("superset.daos.dataset.DatasetDAO.find_by_id")
     @patch(
         "superset.mcp_service.commands.create_form_data.MCPCreateFormDataCommand.run"
