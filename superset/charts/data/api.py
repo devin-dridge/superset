@@ -36,6 +36,10 @@ from superset.charts.data.dashboard_filter_context import (
     get_dashboard_filter_context,
 )
 from superset.charts.data.query_context_cache_loader import QueryContextCacheLoader
+from superset.charts.data.query_context_sidecar import (
+    fetch_query_context_from_sidecar,
+    QueryContextSidecarError,
+)
 from superset.charts.schemas import ChartDataQueryContextSchema
 from superset.commands.chart.data.create_async_job_command import (
     CreateAsyncChartDataJobCommand,
@@ -57,7 +61,7 @@ from superset.constants import (
 )
 from superset.daos.exceptions import DatasourceNotFound
 from superset.exceptions import QueryObjectValidationError, SupersetSecurityException
-from superset.extensions import event_logger
+from superset.extensions import db, event_logger
 from superset.models.sql_lab import Query
 from superset.utils import json
 from superset.utils.core import (
@@ -65,7 +69,7 @@ from superset.utils.core import (
     DatasourceType,
     get_user_id,
 )
-from superset.utils.decorators import logs_context
+from superset.utils.decorators import logs_context, transaction
 from superset.views.base import CsvResponse, generate_download_headers, XlsxResponse
 from superset.views.base_api import statsd_metrics
 
@@ -74,12 +78,18 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_QUERY_CONTEXT_SIDECAR_TIMEOUT = 30
+MISSING_QUERY_CONTEXT_MESSAGE = (
+    "Chart has no query context saved. Please save the chart again."
+)
+
 
 class ChartDataRestApi(ChartRestApi):
     include_route_methods = {"get_data", "data", "data_from_cache"}
 
     @expose("/<int:pk>/data/", methods=("GET",))
     @protect()
+    @transaction()
     @statsd_metrics
     @event_logger.log_this_with_context(
         action=lambda self, *args, **kwargs: f"{self.__class__.__name__}.data",
@@ -161,24 +171,50 @@ class ChartDataRestApi(ChartRestApi):
         if not chart:
             return self.response_404()
 
-        try:
-            json_body = json.loads(chart.query_context)
-        except (TypeError, json.JSONDecodeError):
-            json_body = None
+        force_refresh = self._is_force_refresh_requested()
+        sidecar_url = app.config.get("QUERY_CONTEXT_SIDECAR_URL")
+        should_refresh_query_context = force_refresh and bool(sidecar_url)
+        json_body = (
+            None
+            if should_refresh_query_context
+            else self._load_saved_query_context(chart)
+        )
 
         if json_body is None:
-            return self.response_400(
-                message=_(
-                    "Chart has no query context saved. Please save the chart again."
-                )
+            if not chart.params:
+                return self.response_400(message=_(MISSING_QUERY_CONTEXT_MESSAGE))
+
+            if not sidecar_url:
+                return self.response_400(message=_(MISSING_QUERY_CONTEXT_MESSAGE))
+
+            try:
+                form_data = json.loads(chart.params)
+            except (TypeError, json.JSONDecodeError):
+                return self.response_400(message=_(MISSING_QUERY_CONTEXT_MESSAGE))
+
+            timeout = app.config.get(
+                "QUERY_CONTEXT_SIDECAR_TIMEOUT",
+                DEFAULT_QUERY_CONTEXT_SIDECAR_TIMEOUT,
             )
+            try:
+                json_body = fetch_query_context_from_sidecar(
+                    sidecar_url=sidecar_url,
+                    form_data=form_data,
+                    timeout=timeout,
+                )
+            except QueryContextSidecarError as ex:
+                return self.response_502(message=str(ex))
+
+            chart.query_context = json.dumps(json_body)
+            chart.last_saved_at = datetime.now()
+            db.session.flush()
 
         # override saved query context
         json_body["result_format"] = request.args.get(
             "format", ChartDataResultFormat.JSON
         )
         json_body["result_type"] = request.args.get("type", ChartDataResultType.FULL)
-        json_body["force"] = request.args.get("force")
+        json_body["force"] = force_refresh
 
         # Apply dashboard filter context when filters_dashboard_id is provided
         dashboard_filter_context: DashboardFilterContext | None = None
@@ -281,6 +317,18 @@ class ChartDataRestApi(ChartRestApi):
             add_extra_log_payload=add_extra_log_payload,
             dashboard_filter_context=dashboard_filter_context,
         )
+
+    def _is_force_refresh_requested(self) -> bool:
+        return request.args.get("force") in {"1", "true", "True", "force"}
+
+    def _load_saved_query_context(self, chart: Any) -> dict[str, Any] | None:
+        try:
+            json_body = json.loads(chart.query_context)
+        except (TypeError, json.JSONDecodeError):
+            return None
+        if isinstance(json_body, dict):
+            return json_body
+        return None
 
     @expose("/data", methods=("POST",))
     @protect()

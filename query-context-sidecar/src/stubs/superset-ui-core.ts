@@ -17,15 +17,12 @@
  * under the License.
  */
 
-import { SHARED_COLUMN_CONFIG_PROPS } from './constants';
+export { default as buildQueryContext } from './buildQueryContext';
+export { default as getChartBuildQueryRegistry } from '../runtimeRegistryAdapter';
 
-const { d3NumberFormat } = SHARED_COLUMN_CONFIG_PROPS;
+export type { BuildQuery } from '@superset-ui/core/chart/registries/ChartBuildQueryRegistrySingleton';
 
-test('should keep D3 format input creatable', () => {
-  expect(d3NumberFormat.creatable).toBe(true);
-});
-
-test('should expose expected D3 format options', () => {
-  expect(Array.isArray(d3NumberFormat.options)).toBe(true);
-  expect((d3NumberFormat.options ?? []).length).toBeGreaterThan(0);
-});
+export * from '@superset-ui/core/query';
+export * from '@superset-ui/core/utils';
+export * from '@superset-ui/core/validator';
+export * from '@superset-ui/core/color';

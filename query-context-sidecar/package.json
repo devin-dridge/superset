@@ -1,0 +1,21 @@
+{
+  "name": "query-context-sidecar",
+  "version": "1.0.0",
+  "description": "Node.js sidecar that converts form_data to query_context using Superset frontend buildQuery functions",
+  "private": true,
+  "scripts": {
+    "build": "webpack --mode production",
+    "build:dev": "webpack --mode development",
+    "start": "node dist/index.js",
+    "dev": "webpack --mode development --watch"
+  },
+  "devDependencies": {
+    "css-loader": "^6.8.1",
+    "null-loader": "^4.0.1",
+    "style-loader": "^3.3.3",
+    "ts-loader": "^9.5.1",
+    "typescript": "^5.3.3",
+    "webpack": "^5.89.0",
+    "webpack-cli": "^5.1.4"
+  }
+}

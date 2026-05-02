@@ -1181,6 +1181,107 @@ class TestGetChartDataApi(BaseTestChartDataApi):
         }
 
     @pytest.mark.usefixtures("load_birth_names_dashboard_with_slices")
+    @with_config({"QUERY_CONTEXT_SIDECAR_URL": "http://sidecar.internal"})
+    @mock.patch("superset.charts.data.api.ChartDataRestApi._get_data_response")
+    @mock.patch("superset.charts.data.api.ChartDataCommand.validate")
+    @mock.patch(
+        "superset.charts.data.api.ChartDataRestApi._create_query_context_from_form"
+    )
+    @mock.patch("superset.charts.data.api.fetch_query_context_from_sidecar")
+    def test_get_data_fetches_missing_query_context_from_sidecar(
+        self,
+        mock_fetch_query_context_from_sidecar,
+        mock_create_query_context_from_form,
+        mock_validate,
+        mock_get_data_response,
+    ):
+        chart = db.session.query(Slice).filter_by(slice_name="Genders").one()
+        chart.query_context = None
+        db.session.commit()
+
+        sidecar_query_context = {
+            "datasource": {"id": chart.table.id, "type": "table"},
+            "force": False,
+            "queries": [],
+            "form_data": chart.form_data,
+            "result_format": "json",
+            "result_type": "full",
+        }
+        mock_fetch_query_context_from_sidecar.return_value = sidecar_query_context
+        mock_create_query_context_from_form.return_value = mock.MagicMock()
+        mock_validate.return_value = None
+        mock_get_data_response.return_value = Response(
+            response="{}",
+            status=200,
+            mimetype="application/json",
+        )
+
+        rv = self.get_assert_metric(f"api/v1/chart/{chart.id}/data/", "get_data")
+
+        assert rv.status_code == 200
+        mock_fetch_query_context_from_sidecar.assert_called_once()
+        db.session.refresh(chart)
+        assert json.loads(chart.query_context or "{}").get("datasource") == {
+            "id": chart.table.id,
+            "type": "table",
+        }
+
+    @pytest.mark.usefixtures("load_birth_names_dashboard_with_slices")
+    @with_config({"QUERY_CONTEXT_SIDECAR_URL": "http://sidecar.internal"})
+    @mock.patch("superset.charts.data.api.ChartDataRestApi._get_data_response")
+    @mock.patch("superset.charts.data.api.ChartDataCommand.validate")
+    @mock.patch(
+        "superset.charts.data.api.ChartDataRestApi._create_query_context_from_form"
+    )
+    @mock.patch("superset.charts.data.api.fetch_query_context_from_sidecar")
+    def test_get_data_force_refreshes_query_context_from_sidecar(
+        self,
+        mock_fetch_query_context_from_sidecar,
+        mock_create_query_context_from_form,
+        mock_validate,
+        mock_get_data_response,
+    ):
+        chart = db.session.query(Slice).filter_by(slice_name="Genders").one()
+        chart.query_context = json.dumps(
+            {
+                "datasource": {"id": chart.table.id, "type": "table"},
+                "force": False,
+                "queries": [{"metrics": ["sum__num"]}],
+                "result_format": "json",
+                "result_type": "full",
+            }
+        )
+        db.session.commit()
+
+        refreshed_query_context = {
+            "datasource": {"id": chart.table.id, "type": "table"},
+            "force": False,
+            "queries": [{"metrics": ["count"]}],
+            "form_data": chart.form_data,
+            "result_format": "json",
+            "result_type": "full",
+        }
+        mock_fetch_query_context_from_sidecar.return_value = refreshed_query_context
+        mock_create_query_context_from_form.return_value = mock.MagicMock()
+        mock_validate.return_value = None
+        mock_get_data_response.return_value = Response(
+            response="{}",
+            status=200,
+            mimetype="application/json",
+        )
+
+        rv = self.get_assert_metric(
+            f"api/v1/chart/{chart.id}/data/?force=true",
+            "get_data",
+        )
+
+        assert rv.status_code == 200
+        mock_fetch_query_context_from_sidecar.assert_called_once()
+        db.session.refresh(chart)
+        persisted = json.loads(chart.query_context or "{}")
+        assert persisted.get("queries") == [{"metrics": ["count"]}]
+
+    @pytest.mark.usefixtures("load_birth_names_dashboard_with_slices")
     def test_chart_data_get(self):
         """
         Chart data API: Test GET endpoint

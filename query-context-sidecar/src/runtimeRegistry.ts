@@ -17,15 +17,18 @@
  * under the License.
  */
 
-import { SHARED_COLUMN_CONFIG_PROPS } from './constants';
+export type BuildQueryFn = (formData: Record<string, unknown>) => unknown;
 
-const { d3NumberFormat } = SHARED_COLUMN_CONFIG_PROPS;
+const registry = new Map<string, BuildQueryFn>();
 
-test('should keep D3 format input creatable', () => {
-  expect(d3NumberFormat.creatable).toBe(true);
-});
+export function registerBuildQuery(vizType: string, fn: BuildQueryFn): void {
+  registry.set(vizType, fn);
+}
 
-test('should expose expected D3 format options', () => {
-  expect(Array.isArray(d3NumberFormat.options)).toBe(true);
-  expect((d3NumberFormat.options ?? []).length).toBeGreaterThan(0);
-});
+export function getBuildQuery(vizType: string): BuildQueryFn | undefined {
+  return registry.get(vizType);
+}
+
+export function listVizTypes(): string[] {
+  return Array.from(registry.keys()).sort();
+}

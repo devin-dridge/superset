@@ -17,15 +17,10 @@
  * under the License.
  */
 
-import { SHARED_COLUMN_CONFIG_PROPS } from './constants';
+import './polyfills';
 
-const { d3NumberFormat } = SHARED_COLUMN_CONFIG_PROPS;
+import { registerAllBuildQueries } from './registry';
+import { startServer } from './server';
 
-test('should keep D3 format input creatable', () => {
-  expect(d3NumberFormat.creatable).toBe(true);
-});
-
-test('should expose expected D3 format options', () => {
-  expect(Array.isArray(d3NumberFormat.options)).toBe(true);
-  expect((d3NumberFormat.options ?? []).length).toBeGreaterThan(0);
-});
+registerAllBuildQueries();
+startServer();

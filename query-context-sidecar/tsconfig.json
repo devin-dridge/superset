@@ -1,0 +1,35 @@
+{
+  "compilerOptions": {
+    "target": "ES2019",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": false,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "jsx": "react",
+    "outDir": "dist",
+    "baseUrl": ".",
+    "paths": {
+      "@superset-ui/core": ["../superset-frontend/packages/superset-ui-core/src"],
+      "@superset-ui/core/*": ["../superset-frontend/packages/superset-ui-core/src/*"],
+      "@apache-superset/core": ["../superset-frontend/packages/superset-core/src"],
+      "@apache-superset/core/*": ["../superset-frontend/packages/superset-core/src/*"],
+      "@superset-ui/chart-controls": ["../superset-frontend/packages/superset-ui-chart-controls/src"],
+      "@superset-ui/plugin-chart-echarts/*": ["../superset-frontend/plugins/plugin-chart-echarts/src/*"],
+      "@superset-ui/plugin-chart-table/*": ["../superset-frontend/plugins/plugin-chart-table/src/*"],
+      "@superset-ui/plugin-chart-pivot-table/*": ["../superset-frontend/plugins/plugin-chart-pivot-table/src/*"],
+      "@superset-ui/plugin-chart-handlebars/*": ["../superset-frontend/plugins/plugin-chart-handlebars/src/*"],
+      "@superset-ui/plugin-chart-word-cloud/*": ["../superset-frontend/plugins/plugin-chart-word-cloud/src/*"],
+      "@superset-ui/plugin-chart-cartodiagram/*": ["../superset-frontend/plugins/plugin-chart-cartodiagram/src/*"],
+      "@superset-ui/plugin-chart-ag-grid-table/*": ["../superset-frontend/plugins/plugin-chart-ag-grid-table/src/*"],
+      "@superset-ui/plugin-chart-point-cluster-map/*": ["../superset-frontend/plugins/plugin-chart-point-cluster-map/src/*"],
+      "@superset-ui/preset-chart-deckgl/*": ["../superset-frontend/plugins/preset-chart-deckgl/src/*"],
+      "@superset-ui/legacy-preset-chart-nvd3/*": ["../superset-frontend/plugins/legacy-preset-chart-nvd3/src/*"],
+      "src/*": ["../superset-frontend/src/*"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

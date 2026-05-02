@@ -2322,6 +2322,11 @@ GLOBAL_ASYNC_QUERIES_POLLING_DELAY = int(
 )
 GLOBAL_ASYNC_QUERIES_WEBSOCKET_URL = "ws://127.0.0.1:8080/"
 
+# Optional internal service URL used to generate chart query_context from form_data
+# when query_context is missing (or refresh is explicitly forced).
+QUERY_CONTEXT_SIDECAR_URL: str | None = None
+QUERY_CONTEXT_SIDECAR_TIMEOUT = 30
+
 # Global async queries cache backend configuration options:
 # - Set 'CACHE_TYPE' to 'RedisCache' for RedisCacheBackend.
 # - Set 'CACHE_TYPE' to 'RedisSentinelCache' for RedisSentinelCacheBackend.
