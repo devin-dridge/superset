@@ -64,6 +64,15 @@ import SyncDashboardState, {
   getDashboardContextLocalStorage,
 } from '../components/SyncDashboardState';
 import { AutoRefreshProvider } from '../contexts/AutoRefreshContext';
+import { PartialFilters } from '@superset-ui/core';
+import {
+  parseRisonFilters,
+  risonToAdhocFilters,
+  getRisonFilterParam,
+  prettifyRisonFilterUrl,
+  injectRisonFiltersIntelligently,
+  updateUrlWithUnmatchedFilters,
+} from '../util/risonFilters';
 
 export const DashboardPageIdContext = createContext('');
 
@@ -193,6 +202,61 @@ export const DashboardPage: FC<PageProps> = ({ idOrSlug }: PageProps) => {
       }
       if (isOldRison) {
         dataMask = isOldRison;
+      }
+
+      // Parse Rison URL filters with intelligent native filter injection
+      const risonFilterParam = getRisonFilterParam();
+      if (risonFilterParam) {
+        const risonFilters = parseRisonFilters(risonFilterParam);
+        if (risonFilters.length > 0) {
+          // Convert native filter config array to keyed object for lookup
+          const filterConfigArray =
+            (dashboard?.metadata
+              ?.native_filter_configuration as Array<Record<string, unknown> & { id: string }>) ||
+            [];
+          const nativeFilters: PartialFilters = {};
+          filterConfigArray.forEach(filter => {
+            nativeFilters[filter.id] = filter as PartialFilters[string];
+          });
+          const injectionResult = injectRisonFiltersIntelligently(
+            risonFilters,
+            nativeFilters,
+            dataMask,
+          );
+
+          dataMask = injectionResult.updatedDataMask;
+
+          // For unmatched filters, fall back to adhoc filter approach
+          if (injectionResult.unmatchedFilters.length > 0) {
+            const unmatchedAdhocFilters = risonToAdhocFilters(
+              injectionResult.unmatchedFilters,
+            );
+
+            const risonDataMask = {
+              __rison_filters__: {
+                filterState: { value: unmatchedAdhocFilters },
+                ownState: {},
+              },
+            };
+
+            dataMask = { ...dataMask, ...risonDataMask };
+          }
+
+          // Clean up URL: remove matched filters, keep only unmatched ones
+          const matchedCount =
+            risonFilters.length - injectionResult.unmatchedFilters.length;
+          if (matchedCount > 0) {
+            setTimeout(
+              () =>
+                updateUrlWithUnmatchedFilters(injectionResult.unmatchedFilters),
+              100,
+            );
+          }
+
+          if (injectionResult.unmatchedFilters.length > 0) {
+            setTimeout(() => prettifyRisonFilterUrl(), 150);
+          }
+        }
       }
 
       if (readyToRender) {

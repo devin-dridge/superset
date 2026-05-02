@@ -107,9 +107,16 @@ const publishDataMask = debounce(
     const previousParams = new URLSearchParams(search);
     const newParams = new URLSearchParams();
     let dataMaskKey: string | null;
+    let risonFilterValue: string | null = null;
+
     previousParams.forEach((value, key) => {
       if (!EXCLUDED_URL_PARAMS.includes(key)) {
-        newParams.append(key, value);
+        if (key === 'f') {
+          // Preserve the original Rison filter value to avoid encoding
+          risonFilterValue = value;
+        } else {
+          newParams.append(key, value);
+        }
       }
     });
 
@@ -148,9 +155,16 @@ const publishDataMask = debounce(
       if (appRoot !== '/' && replacementPathname.startsWith(appRoot)) {
         replacementPathname = replacementPathname.substring(appRoot.length);
       }
+      // Manually reconstruct the search string to preserve Rison filter encoding
+      let searchString = newParams.toString();
+      if (risonFilterValue) {
+        const separator = searchString ? '&' : '';
+        searchString = `${searchString}${separator}f=${risonFilterValue}`;
+      }
+
       history.replace({
         pathname: replacementPathname,
-        search: newParams.toString(),
+        search: searchString,
       });
     }
   },

@@ -17,20 +17,31 @@
  * under the License.
  */
 
-import { FC, memo, useMemo } from 'react';
+import { FC, memo, useCallback, useMemo } from 'react';
 import { t } from '@apache-superset/core/translation';
 import { DataMaskStateWithId } from '@superset-ui/core';
 import { styled } from '@apache-superset/core/theme';
 import { Loading } from '@superset-ui/core/components';
-import { RootState } from 'src/dashboard/types';
+import { Icons } from '@superset-ui/core/components/Icons';
+import { FilterBarOrientation, RootState } from 'src/dashboard/types';
 import { useChartLayoutItems } from 'src/dashboard/util/useChartLayoutItems';
 import { useChartIds } from 'src/dashboard/util/charts/useChartIds';
 import { useSelector } from 'react-redux';
+import {
+  getRisonFilterParam,
+  parseRisonFilters,
+  updateUrlWithUnmatchedFilters,
+} from 'src/dashboard/util/risonFilters';
 import FilterControls from './FilterControls/FilterControls';
 import { useChartsVerboseMaps, getFilterBarTestId } from './utils';
 import { HorizontalBarProps } from './types';
 import FilterBarSettings from './FilterBarSettings';
 import crossFiltersSelector from './CrossFilters/selectors';
+import {
+  getUrlFilterIndicators,
+  UrlFilterIndicator,
+} from './UrlFilters/selectors';
+import UrlFilterTag from './UrlFilters/UrlFilterTag';
 
 const HorizontalBar = styled.div`
   ${({ theme }) => `
@@ -65,6 +76,28 @@ const FilterBarEmptyStateContainer = styled.div`
   `}
 `;
 
+const UrlFiltersContainer = styled.div`
+  ${({ theme }) => `
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: ${theme.sizeUnit * 2}px;
+    padding: 0 ${theme.sizeUnit * 2}px;
+    margin-right: ${theme.sizeUnit * 2}px;
+    border-right: 1px solid ${theme.colorBorder};
+  `}
+`;
+
+const UrlFilterTitle = styled.div`
+  ${({ theme }) => `
+    display: flex;
+    align-items: center;
+    gap: ${theme.sizeUnit}px;
+    font-weight: ${theme.fontWeightStrong};
+    font-size: ${theme.fontSizeSM}px;
+  `}
+`;
+
 const HorizontalFilterBar: FC<HorizontalBarProps> = ({
   actions,
   dataMaskSelected,
@@ -94,9 +127,47 @@ const HorizontalFilterBar: FC<HorizontalBarProps> = ({
     [chartIds, chartLayoutItems, dataMask, verboseMaps],
   );
 
+  const activeUrlFilters = useMemo(() => getUrlFilterIndicators(), []);
+
+  const handleRemoveUrlFilter = useCallback(
+    (filterToRemove: UrlFilterIndicator) => {
+      const risonParam = getRisonFilterParam();
+      if (!risonParam) return;
+
+      const currentFilters = parseRisonFilters(risonParam);
+      const remaining = currentFilters.filter(
+        f => f.subject !== filterToRemove.filter.subject,
+      );
+      updateUrlWithUnmatchedFilters(remaining);
+    },
+    [],
+  );
+
+  const urlFiltersComponent = useMemo(() => {
+    if (activeUrlFilters.length === 0) return null;
+
+    return (
+      <UrlFiltersContainer>
+        <UrlFilterTitle>
+          <Icons.LinkOutlined iconSize="s" />
+          {t('URL Filters')}
+        </UrlFilterTitle>
+        {activeUrlFilters.map(filter => (
+          <UrlFilterTag
+            key={filter.subject}
+            filter={filter}
+            orientation={FilterBarOrientation.Horizontal}
+            onRemove={handleRemoveUrlFilter}
+          />
+        ))}
+      </UrlFiltersContainer>
+    );
+  }, [activeUrlFilters, handleRemoveUrlFilter]);
+
   const hasFilters =
     filterValues.length > 0 ||
     selectedCrossFilters.length > 0 ||
+    activeUrlFilters.length > 0 ||
     chartCustomizationValues.length > 0;
 
   return (
@@ -113,16 +184,19 @@ const HorizontalFilterBar: FC<HorizontalBarProps> = ({
               </FilterBarEmptyStateContainer>
             )}
             {hasFilters && (
-              <FilterControls
-                dataMaskSelected={dataMaskSelected}
-                onFilterSelectionChange={onSelectionChange}
-                onPendingCustomizationDataMaskChange={
-                  onPendingCustomizationDataMaskChange
-                }
-                chartCustomizationValues={chartCustomizationValues}
-                clearAllTriggers={clearAllTriggers}
-                onClearAllComplete={onClearAllComplete}
-              />
+              <>
+                {urlFiltersComponent}
+                <FilterControls
+                  dataMaskSelected={dataMaskSelected}
+                  onFilterSelectionChange={onSelectionChange}
+                  onPendingCustomizationDataMaskChange={
+                    onPendingCustomizationDataMaskChange
+                  }
+                  chartCustomizationValues={chartCustomizationValues}
+                  clearAllTriggers={clearAllTriggers}
+                  onClearAllComplete={onClearAllComplete}
+                />
+              </>
             )}
             {actions}
           </>
