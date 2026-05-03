@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+/// <reference types="@emotion/jest" />
 import fetchMock from 'fetch-mock';
 import {
   fireEvent,
@@ -485,6 +486,43 @@ test('should render ParentSize wrapper with height 100% for tabs', async () => {
   expect(gridContainer).toBeInTheDocument();
   expect(parentSizeWrapper).toBeInTheDocument();
   expect(tabPanels.length).toBeGreaterThan(0);
+});
+
+test('should apply min-height to the top-level tab drop target so tabs can be dropped on dashboards with content', () => {
+  (useStoredSidebarWidth as jest.Mock).mockImplementation(() => [
+    100,
+    jest.fn(),
+  ]);
+  (fetchFaveStar as jest.Mock).mockReturnValue({ type: 'mock-action' });
+  (setActiveTab as jest.Mock).mockReturnValue({ type: 'mock-action' });
+
+  const { getByTestId } = render(<DashboardBuilder />, {
+    useRedux: true,
+    store: storeWithState({
+      ...mockState,
+      dashboardLayout: undoableDashboardLayout,
+      dashboardState: { ...mockState.dashboardState, editMode: true },
+    }),
+    useDnd: true,
+    useTheme: true,
+  });
+
+  const headerWrapper = getByTestId('dashboard-header-wrapper');
+
+  // The Droppable inside the header should have the empty-droptarget class
+  // when there are no top-level tabs and edit mode is active. Without this
+  // class (and its associated min-height CSS rule), the drop target has zero
+  // height and users cannot drag tabs onto dashboards that already have
+  // content.
+  const droptarget = headerWrapper.querySelector('.empty-droptarget');
+  expect(droptarget).toBeInTheDocument();
+
+  // Verify the StyledHeader CSS defines min-height for .empty-droptarget.
+  expect(headerWrapper).toHaveStyleRule(
+    'min-height',
+    expect.stringMatching(/\S+/),
+    { target: '.empty-droptarget' },
+  );
 });
 
 test('should maintain layout when switching between tabs', async () => {
