@@ -459,7 +459,7 @@ class ChartDataAggregateOptionsSchema(ChartDataPostProcessingOperationOptionsSch
                 allow_none=False,
                 metadata={"description": "Columns by which to group by"},
             ),
-            metadata={"minLength": 1},
+            validate=Length(min=1),
             required=True,
         ),
     )
@@ -658,6 +658,9 @@ class ChartDataProphetOptionsSchema(ChartDataPostProcessingOperationOptionsSchem
             "example": 7,
             "min": 0,
         },
+        validate=[
+            Range(min=0, error=_("`periods` must be greater than or equal to 0"))
+        ],
         required=True,
     )
     confidence_interval = fields.Float(
@@ -790,10 +793,8 @@ class ChartDataPivotOptionsSchema(ChartDataPostProcessingOperationOptionsSchema)
     index = (
         fields.List(
             fields.String(allow_none=False),
-            metadata={
-                "description": "Columns to group by on the table index (=rows)",
-                "minLength": 1,
-            },
+            metadata={"description": "Columns to group by on the table index (=rows)"},
+            validate=Length(min=1),
             required=True,
         ),
     )
