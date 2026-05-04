@@ -79,8 +79,18 @@ class Api(BaseSupersetView):
         params: slice_id: integer
         """
         form_data = {}
-        slice_id = request.args.get("slice_id")
-        if slice_id:
+        slice_id_param = request.args.get("slice_id")
+        if slice_id_param is not None and slice_id_param != "":
+            try:
+                slice_id = int(slice_id_param)
+            except (TypeError, ValueError):
+                return self.json_response(
+                    {"message": _("slice_id must be an integer")}, 400
+                )
+            if slice_id <= 0:
+                return self.json_response(
+                    {"message": _("slice_id must be a positive integer")}, 400
+                )
             slc = db.session.query(Slice).filter_by(id=slice_id).one_or_none()
             if slc:
                 form_data = slc.form_data.copy()

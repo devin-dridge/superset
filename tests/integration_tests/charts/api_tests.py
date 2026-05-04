@@ -1385,6 +1385,21 @@ class TestChartApi(SupersetTestCase, ApiOwnersTestCaseMixin, InsertChartMixin):
         if slice:
             self.assertEqual(data["slice_id"], slice.id)
 
+    def test_query_form_data_invalid_slice_id(self):
+        """
+        Chart API: Test query form data rejects non-integer slice_id
+        """
+        self.login(username="admin")
+        for invalid in ("abc", "1; DROP TABLE", "1.5", "-1", "0"):
+            uri = f"api/v1/form_data/?slice_id={invalid}"
+            rv = self.client.get(uri)
+            self.assertEqual(
+                rv.status_code,
+                400,
+                msg=f"slice_id={invalid!r} should have been rejected",
+            )
+            self.assertEqual(rv.content_type, "application/json")
+
     @pytest.mark.usefixtures(
         "load_unicode_dashboard_with_slice",
         "load_energy_table_with_slice",
