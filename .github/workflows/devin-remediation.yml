@@ -1,0 +1,32 @@
+name: Trigger Devin Remediation
+
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  trigger-devin:
+    if: github.event.label.name == 'devin-remediate'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Send issue event to remediation service
+        run: |
+          curl -X POST "${{ secrets.REMEDIATION_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -H "X-GitHub-Event: issues" \
+            -d '{
+              "action": "${{ github.event.action }}",
+              "label": {
+                "name": "${{ github.event.label.name }}"
+              },
+              "repository": {
+                "full_name": "${{ github.repository }}"
+              },
+              "issue": {
+                "number": ${{ github.event.issue.number }},
+                "title": ${{ toJson(github.event.issue.title) }},
+                "body": ${{ toJson(github.event.issue.body) }},
+                "html_url": "${{ github.event.issue.html_url }}"
+              }
+            }'
