@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any, TYPE_CHECKING
+from typing import Any, Dict, TYPE_CHECKING
 
 import simplejson as json
 from flask import request
@@ -24,6 +24,7 @@ from flask_appbuilder import expose
 from flask_appbuilder.api import rison
 from flask_appbuilder.security.decorators import has_access_api
 from flask_babel import lazy_gettext as _
+from marshmallow import EXCLUDE, fields, pre_load, Schema, validate, ValidationError
 
 from superset import db, event_logger
 from superset.charts.commands.exceptions import (
@@ -35,12 +36,32 @@ from superset.models.slice import Slice
 from superset.superset_typing import FlaskResponse
 from superset.utils import core as utils
 from superset.utils.date_parser import get_since_until
-from superset.views.base import api, BaseSupersetView, handle_api_exception
+from superset.views.base import (
+    api,
+    BaseSupersetView,
+    handle_api_exception,
+    json_error_response,
+)
 
 if TYPE_CHECKING:
     from superset.common.query_context_factory import QueryContextFactory
 
 get_time_range_schema = {"type": "string"}
+
+
+class FormDataRequestSchema(Schema):
+    """Validates query parameters accepted by ``GET /api/v1/form_data/``."""
+
+    slice_id = fields.Integer(load_default=None, validate=validate.Range(min=1))
+
+    class Meta:  # pylint: disable=too-few-public-methods
+        unknown = EXCLUDE
+
+    # pylint: disable=no-self-use, unused-argument
+    @pre_load
+    def drop_blank_values(self, data: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
+        """Treat empty-string query params as if they were omitted."""
+        return {key: value for key, value in data.items() if value != ""}
 
 
 class Api(BaseSupersetView):
@@ -78,19 +99,14 @@ class Api(BaseSupersetView):
         Get the formdata stored in the database for existing slice.
         params: slice_id: integer
         """
+        try:
+            params = FormDataRequestSchema().load(request.args)
+        except ValidationError as err:
+            return json_error_response(err.messages, status=400)
+
         form_data = {}
-        slice_id_param = request.args.get("slice_id")
-        if slice_id_param is not None and slice_id_param != "":
-            try:
-                slice_id = int(slice_id_param)
-            except (TypeError, ValueError):
-                return self.json_response(
-                    {"message": _("slice_id must be an integer")}, 400
-                )
-            if slice_id <= 0:
-                return self.json_response(
-                    {"message": _("slice_id must be a positive integer")}, 400
-                )
+        slice_id = params.get("slice_id")
+        if slice_id:
             slc = db.session.query(Slice).filter_by(id=slice_id).one_or_none()
             if slc:
                 form_data = slc.form_data.copy()
