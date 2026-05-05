@@ -333,3 +333,28 @@ class TestLogApi(SupersetTestCase):
                 ]
             },
         )
+
+    def test_get_recent_activity_invalid_pagination(self):
+        """
+        Log API: Test recent activity rejects malformed pagination arguments
+        """
+        admin_user = self.get_user("admin")
+        self.login(username="admin")
+
+        for arguments in (
+            {"page": -1},
+            {"page_size": 0},
+            {"page_size": 101},
+            {"page": 1.5},
+            {"page_size": "10"},
+        ):
+            uri = (
+                f"api/v1/log/recent_activity/{admin_user.id}/"
+                f"?q={prison.dumps(arguments)}"
+            )
+            rv = self.client.get(uri)
+            self.assertEqual(
+                rv.status_code,
+                400,
+                msg=f"Expected 400 for arguments={arguments}, got {rv.status_code}",
+            )
