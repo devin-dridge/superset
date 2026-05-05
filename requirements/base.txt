@@ -283,7 +283,7 @@ typing-extensions==4.4.0
     #   flask-limiter
     #   limits
     #   rich
-urllib3==1.26.6
+urllib3==1.26.20
     # via selenium
 vine==5.0.0
     # via
