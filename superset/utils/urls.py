@@ -55,7 +55,11 @@ def modify_url_query(url: str, **kwargs: Any) -> str:
 
 
 def is_safe_url(url: str) -> bool:
-    if url.startswith("///"):
+    if not url:
+        return False
+    # Reject protocol-relative-style prefixes that some browsers normalize
+    # (e.g. "\\evil.com" or "/\evil.com") into redirects to a foreign host.
+    if url.startswith(("///", "\\\\", "/\\", "\\/")):
         return False
     try:
         ref_url = urlparse(request.host_url)
