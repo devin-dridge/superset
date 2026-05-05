@@ -56,6 +56,10 @@ def test_convert_dashboard_link_with_integer() -> None:
         ("external.com", False),
         ("///localhost", False),
         ("xpto://localhost:[3/1/", False),
+        ("", False),
+        ("\\\\evil.com", False),
+        ("/\\evil.com", False),
+        ("\\/evil.com", False),
     ],
 )
 def test_is_safe_url(url: str, is_safe: bool) -> None:
