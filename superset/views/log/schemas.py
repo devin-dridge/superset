@@ -19,8 +19,8 @@ from marshmallow import fields, Schema
 get_recent_activity_schema = {
     "type": "object",
     "properties": {
-        "page": {"type": "number"},
-        "page_size": {"type": "number"},
+        "page": {"type": "integer", "minimum": 0},
+        "page_size": {"type": "integer", "minimum": 1, "maximum": 100},
         "actions": {"type": "array", "items": {"type": "string"}},
         "distinct": {"type": "boolean"},
     },
