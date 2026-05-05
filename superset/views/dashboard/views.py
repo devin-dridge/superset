@@ -31,6 +31,7 @@ from superset.constants import MODEL_VIEW_RW_METHOD_PERMISSION_MAP, RouteMethod
 from superset.models.dashboard import Dashboard as DashboardModel
 from superset.superset_typing import FlaskResponse
 from superset.utils import core as utils
+from superset.utils.urls import parse_int_id_list_arg
 from superset.views.base import (
     BaseSupersetView,
     common_bootstrap_payload,
@@ -76,9 +77,16 @@ class DashboardModelView(
     @expose("/export_dashboards_form")
     def download_dashboards(self) -> FlaskResponse:
         if request.args.get("action") == "go":
-            ids = set(request.args.getlist("id"))
+            try:
+                ids = parse_int_id_list_arg(request.args.getlist("id"))
+            except ValueError as ex:
+                return Response(
+                    json.dumps({"error": str(ex)}),
+                    status=400,
+                    mimetype="application/json",
+                )
             return Response(
-                DashboardModel.export_dashboards(ids),
+                DashboardModel.export_dashboards(set(ids)),
                 headers=generate_download_headers("json"),
                 mimetype="application/text",
             )

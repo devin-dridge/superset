@@ -33,7 +33,7 @@ repos:
             types-pytz,
             types-croniter,
             types-PyYAML,
-            types-setuptools,
+            "types-setuptools<71",
             types-paramiko,
             types-Markdown,
           ]

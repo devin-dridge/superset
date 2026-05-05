@@ -15,9 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import List
+
 import pytest
 
-from superset.utils.urls import modify_url_query
+from superset.utils.urls import modify_url_query, parse_int_id_list_arg
 
 EXPLORE_CHART_LINK = "http://localhost:9000/explore/?form_data=%7B%22slice_id%22%3A+76%7D&standalone=true&force=false"
 
@@ -68,3 +70,31 @@ def test_is_safe_url(url: str, is_safe: bool) -> None:
 
     with app.test_request_context("/"):
         assert is_safe_url(url) == is_safe
+
+
+def test_parse_int_id_list_arg_valid() -> None:
+    assert parse_int_id_list_arg([]) == []
+    assert parse_int_id_list_arg(["1", "2", "3"]) == [1, 2, 3]
+    assert parse_int_id_list_arg(["10"]) == [10]
+
+
+@pytest.mark.parametrize(
+    "values",
+    [
+        ["abc"],
+        ["1", "two"],
+        ["1; DROP TABLE dashboards"],
+        ["0"],
+        ["-1"],
+        ["1.5"],
+        [""],
+    ],
+)
+def test_parse_int_id_list_arg_rejects_invalid(values: List[str]) -> None:
+    with pytest.raises(ValueError):
+        parse_int_id_list_arg(values)
+
+
+def test_parse_int_id_list_arg_enforces_max_items() -> None:
+    with pytest.raises(ValueError):
+        parse_int_id_list_arg([str(i) for i in range(1, 5)], max_items=3)
